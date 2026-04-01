@@ -687,14 +687,18 @@ export default function AuthPage() {
         background: "#faf9f7",
       }}
     >
-      <style>{`
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Serif+Display:ital@0;1&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .auth-panel { animation: fadeIn 0.35s ease forwards; }
         @media (max-width: 900px) { .auth-left { display: none !important; } .auth-right { width: 100% !important; } }
-      `}</style>
+      `,
+        }}
+      />
 
       {/* Left panel */}
       <div
