@@ -4,6 +4,31 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+// Helper to format auth errors with user-friendly messages
+const formatAuthError = (errorMessage) => {
+  if (!errorMessage) return "An error occurred. Please try again.";
+
+  const lowerMsg = errorMessage.toLowerCase();
+
+  if (lowerMsg.includes("rate limit")) {
+    return "Too many sign-up attempts. Please wait a few minutes and try again.";
+  }
+  if (lowerMsg.includes("invalid login credentials")) {
+    return "Invalid email or password. Please try again.";
+  }
+  if (lowerMsg.includes("email not confirmed")) {
+    return "Please confirm your email before signing in.";
+  }
+  if (lowerMsg.includes("user already registered")) {
+    return "An account with this email already exists. Please sign in instead.";
+  }
+  if (lowerMsg.includes("weak password")) {
+    return "Password is too weak. Please use at least 8 characters with uppercase, numbers, and symbols.";
+  }
+
+  return errorMessage;
+};
+
 const INPUT_BASE = {
   width: "100%",
   background: "#fff",
@@ -192,6 +217,7 @@ function LoginForm({ onSwitch }) {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const router = useRouter();
   const supabase = createClient();
 
@@ -282,6 +308,18 @@ function LoginForm({ onSwitch }) {
           Forgot password?
         </button>
       </div>
+      {errors.submit && (
+        <p
+          style={{
+            fontSize: 12,
+            color: "#e06060",
+            marginBottom: 16,
+            textAlign: "center",
+          }}
+        >
+          {errors.submit}
+        </p>
+      )}
       <button
         type="submit"
         disabled={loading || success}
@@ -365,6 +403,7 @@ function RegisterForm({ onSwitch }) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [step, setStep] = useState(1);
+  const [cooldown, setCooldown] = useState(0);
   const router = useRouter();
   const supabase = createClient();
 
@@ -402,6 +441,12 @@ function RegisterForm({ onSwitch }) {
       setStep(2);
       return;
     }
+
+    if (cooldown > 0) {
+      setErrors({ submit: `Please wait ${cooldown}s before trying again.` });
+      return;
+    }
+
     const errs = validateStep2();
     if (Object.keys(errs).length) {
       setErrors(errs);
@@ -423,7 +468,23 @@ function RegisterForm({ onSwitch }) {
       });
 
       if (error) {
-        setErrors({ submit: error.message });
+        const formattedMessage = formatAuthError(error.message);
+        setErrors({ submit: formattedMessage });
+
+        // Set cooldown for rate limit errors
+        if (error.message.toLowerCase().includes("rate limit")) {
+          setCooldown(60);
+          const timer = setInterval(() => {
+            setCooldown((prev) => {
+              if (prev <= 1) {
+                clearInterval(timer);
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+        }
+
         setLoading(false);
         return;
       }
@@ -559,7 +620,6 @@ function RegisterForm({ onSwitch }) {
           >
             <input
               type="checkbox"
-              required
               style={{ marginTop: 2, accentColor: "#1a1a1a" }}
             />
             <span style={{ fontSize: 13, color: "#666", lineHeight: 1.55 }}>
@@ -574,6 +634,18 @@ function RegisterForm({ onSwitch }) {
             </span>
           </label>
         </>
+      )}
+      {errors.submit && (
+        <p
+          style={{
+            fontSize: 12,
+            color: "#e06060",
+            marginBottom: 16,
+            textAlign: "center",
+          }}
+        >
+          {errors.submit}
+        </p>
       )}
 
       <button
